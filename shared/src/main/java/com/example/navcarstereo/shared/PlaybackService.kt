@@ -204,16 +204,19 @@ class PlaybackService : MediaLibraryService() {
             query: String,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<Void>> = serviceScope.future {
-            lastSearchResults = client.search(query)
-                .distinctBy { it.albumId ?: it.id }
-                .map { song ->
-                    val albumId = song.albumId
-                    if (albumId != null) {
-                        NavAlbum(albumId, song.album, song.artist, song.coverArtId, songCount = 0).toMediaItem()
-                    } else {
-                        song.toMediaItem()
+            lastSearchResults = coroutineScope {
+                client.search(query)
+                    .distinctBy { it.albumId ?: it.id }
+                    .map { song ->
+                        val albumId = song.albumId
+                        if (albumId != null) {
+                            async { client.album(albumId).toMediaItem() }
+                        } else {
+                            async { song.toMediaItem() }
+                        }
                     }
-                }
+                    .map { it.await() }
+            }
             session.notifySearchResultChanged(browser, query, lastSearchResults.size, params)
             LibraryResult.ofVoid(params)
         }

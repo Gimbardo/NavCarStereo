@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -107,6 +109,7 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showNowPlaying by remember { mutableStateOf(false) }
+    val nowPlayingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val searchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -146,6 +149,7 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
             destination = Destination.Detail(item)
         } else {
             controller.play(item)
+            showNowPlaying = true
         }
     }
 
@@ -251,7 +255,10 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
     }
 
     if (showNowPlaying) {
-        ModalBottomSheet(onDismissRequest = { showNowPlaying = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showNowPlaying = false },
+            sheetState = nowPlayingSheetState,
+        ) {
             NowPlayingSheet(
                 state = playback,
                 onTogglePlayPause = { controller.togglePlayPause() },
@@ -260,6 +267,7 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                 onToggleShuffle = { controller.toggleShuffle() },
                 onCycleRepeatMode = { controller.cycleRepeatMode() },
                 onSeekTo = { controller.seekTo(it) },
+                modifier = Modifier.fillMaxHeight(),
             )
         }
     }

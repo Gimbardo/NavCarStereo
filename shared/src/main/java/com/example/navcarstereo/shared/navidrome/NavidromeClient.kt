@@ -46,12 +46,22 @@ class NavidromeClient(private val config: NavidromeConfig) {
             .map { it.toAlbum() }
     }
 
+    suspend fun album(albumId: String): NavAlbum = withContext(Dispatchers.IO) {
+        get("getAlbum", "id" to albumId).getJSONObject("album").toAlbum()
+    }
+
+    /**
+     * Le tracce Subsonic hanno un `coverArt` proprio (spesso l'id del file, non dell'album): usarlo
+     * causerebbe un secondo fetch/URL diverso dalla cover album già mostrata e già in cache. Si
+     * sovrascrive con la cover art dell'album, identica a quella vista un attimo prima nella lista.
+     */
     suspend fun albumSongs(albumId: String): List<NavSong> = withContext(Dispatchers.IO) {
-        get("getAlbum", "id" to albumId)
-            .getJSONObject("album")
-            .optJSONArray("song")
+        val album = get("getAlbum", "id" to albumId).getJSONObject("album")
+        val albumCoverArtId = album.optStringOrNull("coverArt")
+        album.optJSONArray("song")
             .orEmpty()
             .map { it.toSong() }
+            .map { song -> if (albumCoverArtId != null) song.copy(coverArtId = albumCoverArtId) else song }
     }
 
     suspend fun song(songId: String): NavSong = withContext(Dispatchers.IO) {
