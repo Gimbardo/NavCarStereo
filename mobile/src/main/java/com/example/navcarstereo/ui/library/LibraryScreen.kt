@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +33,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -55,7 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import com.example.navcarstereo.download.downloadAlbum
+import com.example.navcarstereo.download.downloadTrack
 import com.example.navcarstereo.player.PlayerController
+import com.example.navcarstereo.shared.navidrome.CredentialsStore
 import kotlinx.coroutines.delay
 
 private sealed interface Tab {
@@ -99,8 +104,11 @@ private fun Tab.icon() = when (this) {
 fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val controller = remember { PlayerController(context) }
+    val config = remember { CredentialsStore(context).load() }
     LaunchedEffect(Unit) { controller.connect() }
     DisposableEffect(Unit) { onDispose { controller.release() } }
+
+    var pendingDownload by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
 
     val playback by controller.state.collectAsState()
 
@@ -242,7 +250,23 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 when (val dest = destination) {
-                    is Destination.Detail -> AlbumDetailView(dest.item, items, onItemClick = ::onItemClick)
+                    is Destination.Detail -> AlbumDetailView(
+                        dest.item,
+                        items,
+                        onItemClick = ::onItemClick,
+                        onDownloadAlbum = {
+                            val title = dest.item.mediaMetadata.title?.toString() ?: "l'album"
+                            pendingDownload = "Scaricare tutti i brani di \"$title\"?" to {
+                                config?.let { downloadAlbum(context, it, items) }
+                            }
+                        },
+                        onDownloadTrack = { track ->
+                            val title = track.mediaMetadata.title?.toString() ?: "il brano"
+                            pendingDownload = "Scaricare \"$title\"?" to {
+                                config?.let { downloadTrack(context, it, track) }
+                            }
+                        },
+                    )
                     is Destination.TabRoot -> if (selectedTab == Tab.Home) {
                         LibraryHomeList(items, onItemClick = ::onItemClick)
                     } else {
@@ -270,6 +294,20 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxHeight(),
             )
         }
+    }
+
+    pendingDownload?.let { (message, confirm) ->
+        AlertDialog(
+            onDismissRequest = { pendingDownload = null },
+            title = { Text("Download") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { confirm(); pendingDownload = null }) { Text("Scarica") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDownload = null }) { Text("Annulla") }
+            },
+        )
     }
 }
 

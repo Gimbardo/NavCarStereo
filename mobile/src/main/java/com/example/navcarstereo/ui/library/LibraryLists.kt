@@ -13,7 +13,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -129,7 +133,14 @@ private fun AlbumCard(item: MediaItem, onClick: () -> Unit, modifier: Modifier =
 
 /** Dettaglio album/playlist: art fetchata una sola volta in testa, poi tracce senza cover per riga. */
 @Composable
-fun AlbumDetailView(container: MediaItem, tracks: List<MediaItem>, onItemClick: (MediaItem) -> Unit, modifier: Modifier = Modifier) {
+fun AlbumDetailView(
+    container: MediaItem,
+    tracks: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit,
+    onDownloadAlbum: () -> Unit,
+    onDownloadTrack: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(modifier = modifier.fillMaxWidth()) {
         item(key = "header") {
             Column(
@@ -149,32 +160,38 @@ fun AlbumDetailView(container: MediaItem, tracks: List<MediaItem>, onItemClick: 
                 container.mediaMetadata.artist?.let {
                     Text(text = it.toString(), style = MaterialTheme.typography.bodyMedium)
                 }
+                IconButton(onClick = onDownloadAlbum) {
+                    Icon(Icons.Filled.Download, contentDescription = "Scarica album")
+                }
             }
             HorizontalDivider()
         }
         items(tracks, key = { it.mediaId }) { track ->
-            TrackRow(track, onClick = { onItemClick(track) })
+            TrackRow(track, onClick = { onItemClick(track) }, onDownloadClick = { onDownloadTrack(track) })
             HorizontalDivider()
         }
     }
 }
 
 @Composable
-private fun TrackRow(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+private fun TrackRow(item: MediaItem, onClick: () -> Unit, onDownloadClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = item.mediaMetadata.title?.toString() ?: item.mediaId,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        item.mediaMetadata.artist?.let {
-            Text(text = it.toString(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = item.mediaMetadata.title?.toString() ?: item.mediaId,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            item.mediaMetadata.artist?.let {
+                Text(text = it.toString(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        IconButton(onClick = onDownloadClick) {
+            Icon(Icons.Filled.Download, contentDescription = "Scarica brano")
         }
     }
 }
