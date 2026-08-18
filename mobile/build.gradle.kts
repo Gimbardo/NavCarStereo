@@ -17,6 +17,12 @@ fun execGit(vararg args: String): String? = try {
 val gitVersionName = execGit("describe", "--tags", "--always") ?: "1.0"
 val gitVersionCode = execGit("rev-list", "--count", "HEAD")?.toIntOrNull() ?: 1
 
+// Set by CI to sign the release build; unsigned locally.
+val signingStoreFile = System.getenv("SIGNING_STORE_FILE")
+val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+
 android {
     namespace = "com.example.navcarstereo"
     compileSdk {
@@ -33,10 +39,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (signingStoreFile != null) {
+            create("release") {
+                storeFile = file(signingStoreFile)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            if (signingStoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
