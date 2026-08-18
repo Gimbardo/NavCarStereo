@@ -45,6 +45,15 @@ Qualsiasi nuova schermata o funzione va valutata contro questi tre punti: se non
 
 Browse tree a due tab (root → figli browsable "Home"/"Album", standard Android Auto per i tab): **Home** = righe di album raggruppate (ultimi ascoltati, nuove uscite, più ascoltati, random) via extra `CONTENT_STYLE_GROUP_TITLE_HINT`/`CONTENT_STYLE_BROWSABLE_HINT` del protocollo MediaBrowser; **Album** = elenco alfabetico completo (fino a 500, limite Subsonic per chiamata, nessuna paginazione reale ancora). Tap su album → tracce → play in ordine. Ricerca (`search3`, solo brani) apre l'album del brano trovato invece di riprodurlo subito. Build verificata con `./gradlew :mobile:assembleDebug` (compila, non ancora testata su device/Android Auto reale — tab e righe raggruppate da confermare su DHU).
 
+`versionCode`/`versionName` in `mobile/build.gradle.kts` sono derivati da git (tag corrente e conteggio commit), non hardcoded.
+
+## CI/CD
+
+- `.github/workflows/test.yml` — esegue `./gradlew test` su ogni push/PR, a prescindere dal branch (gate per il merge).
+- `.github/workflows/release.yml` — al push di un tag `vX.Y.Z` (o via `workflow_dispatch` per un run manuale, senza pubblicare release): test, build di `mobile-release.apk` firmato, pubblicazione come GitHub Release con l'APK allegato.
+- Firma release: keystore in `~/keystores/navcarstereo-release.jks` (fuori dal repo, non in git), password in `~/keystores/navcarstereo-release.password.txt`. Caricata su GitHub come secret (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`); se persa, impossibile aggiornare l'app con la stessa identità di firma — fare backup.
+- R8/minify disattivato in release (`optimization.enable = false`), nessuna ottimizzazione/offuscazione.
+
 Non ancora fatto (fast-follow, non bloccante):
 - Test su Desktop Head Unit / device reale.
 - Notifica di errore chiara se le credenziali non sono configurate quando Android Auto avvia il `PlaybackService` (oggi lancia eccezione in `onCreate`).
