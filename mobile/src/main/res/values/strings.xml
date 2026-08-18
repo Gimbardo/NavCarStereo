@@ -1,3 +1,53 @@
 <resources>
     <string name="app_name">NavCarStereo</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_albums">Albums</string>
+    <string name="tab_playlists">Playlists</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">Search albums, artists, tracks</string>
+    <string name="search_title">Search</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_clear_search">Clear</string>
+    <string name="cd_close_search">Close search</string>
+
+    <!-- Navigation / generic actions -->
+    <string name="cd_back">Back</string>
+    <string name="cd_settings">Settings</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Player controls -->
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_next">Next</string>
+    <string name="cd_previous">Previous</string>
+    <string name="cd_shuffle">Shuffle</string>
+    <string name="cd_repeat">Repeat</string>
+    <string name="cd_lyrics">Lyrics</string>
+
+    <!-- Download -->
+    <string name="cd_download_album">Download album</string>
+    <string name="cd_download_track">Download track</string>
+    <string name="download_dialog_title">Download</string>
+    <string name="download_confirm_album">Download all tracks of \"%1$s\"?</string>
+    <string name="download_confirm_track">Download \"%1$s\"?</string>
+    <string name="unknown_album">the album</string>
+    <string name="unknown_track">the track</string>
+    <string name="action_download">Download</string>
+
+    <!-- Server setup -->
+    <string name="setup_title">Navidrome server</string>
+    <string name="action_close">Close</string>
+    <string name="label_active">Active</string>
+    <string name="action_remove">Remove</string>
+    <string name="label_server_url">Server URL (e.g. https://navidrome.example.com)</string>
+    <string name="label_username">Username</string>
+    <string name="label_password">Password</string>
+    <string name="action_connect_save">Connect and save</string>
+    <string name="action_add_server">Add server</string>
+    <string name="status_connected">Connected. Open Android Auto to see your library.</string>
+    <string name="status_error">Error: %1$s</string>
+    <string name="error_connection_failed">Connection failed</string>
 </resources>

@@ -32,9 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
+import com.example.navcarstereo.R
 import com.example.navcarstereo.player.PlaybackUiState
 import com.example.navcarstereo.shared.navidrome.CredentialsStore
 import com.example.navcarstereo.shared.navidrome.NavLyrics
@@ -90,7 +92,7 @@ fun NowPlayingSheet(
             }) {
                 Icon(
                     Icons.Filled.Lyrics,
-                    contentDescription = "Testi",
+                    contentDescription = stringResource(R.string.cd_lyrics),
                     tint = if (showLyrics) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -142,26 +144,26 @@ fun NowPlayingSheet(
             IconButton(onClick = onToggleShuffle) {
                 Icon(
                     Icons.Filled.Shuffle,
-                    contentDescription = "Shuffle",
+                    contentDescription = stringResource(R.string.cd_shuffle),
                     tint = if (state.shuffleEnabled) activeTint else inactiveTint,
                 )
             }
             IconButton(onClick = onSkipPrevious) {
-                Icon(Icons.Filled.SkipPrevious, contentDescription = "Precedente")
+                Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.cd_previous))
             }
             IconButton(onClick = onTogglePlayPause) {
                 Icon(
                     if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pausa" else "Play",
+                    contentDescription = stringResource(if (state.isPlaying) R.string.cd_pause else R.string.cd_play),
                 )
             }
             IconButton(onClick = onSkipNext) {
-                Icon(Icons.Filled.SkipNext, contentDescription = "Successivo")
+                Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.cd_next))
             }
             IconButton(onClick = onCycleRepeatMode) {
                 Icon(
                     if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                    contentDescription = "Repeat",
+                    contentDescription = stringResource(R.string.cd_repeat),
                     tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) inactiveTint else activeTint,
                 )
             }

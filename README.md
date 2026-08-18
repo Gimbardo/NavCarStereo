@@ -1,6 +1,6 @@
 # NavCarStereo
 
-Android/Android Auto client for a [Navidrome](https://www.navidrome.org/) server (Subsonic protocol). Focus around albums — home screen with recently played albums, search, sequential/shuffle playback. No default alphabetical sorting.
+Android/Android Auto client for a [Navidrome](https://www.navidrome.org/) server (Subsonic protocol). Focused around albums.
 
 ## Modules
 

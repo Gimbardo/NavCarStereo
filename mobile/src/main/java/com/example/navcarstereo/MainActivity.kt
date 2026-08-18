@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.navcarstereo.ui.theme.NavCarStereoTheme
@@ -79,6 +80,7 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
     var password by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<ConnectionStatus>(ConnectionStatus.Idle) }
     val scope = rememberCoroutineScope()
+    val connectionFailedFallback = stringResource(R.string.error_connection_failed)
 
     fun refresh() {
         servers = store.listServers()
@@ -94,16 +96,16 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
                 refresh()
                 ConnectionStatus.Success
             } catch (e: Exception) {
-                ConnectionStatus.Error(e.message ?: "Connessione fallita")
+                ConnectionStatus.Error(e.message ?: connectionFailedFallback)
             }
         }
     }
 
     Column(modifier = modifier.fillMaxWidth().padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Server Navidrome", modifier = Modifier.weight(1f))
+            Text(text = stringResource(R.string.setup_title), modifier = Modifier.weight(1f))
             if (active != null) {
-                TextButton(onClick = onConfigured) { Text("Chiudi") }
+                TextButton(onClick = onConfigured) { Text(stringResource(R.string.action_close)) }
             }
         }
 
@@ -122,14 +124,14 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
                     ) {
                         Text(text = "${config.serverUrl} — ${config.username}")
                         if (config.serverUrl == active?.serverUrl && config.username == active?.username) {
-                            Text(text = "Attivo")
+                            Text(text = stringResource(R.string.label_active))
                         }
                     }
                     TextButton(onClick = {
                         store.removeServer(config)
                         refresh()
                     }) {
-                        Text("Rimuovi")
+                        Text(stringResource(R.string.action_remove))
                     }
                 }
                 HorizontalDivider()
@@ -140,19 +142,19 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
             TextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
-                label = { Text("URL server (es. https://navidrome.miodominio.it)") },
+                label = { Text(stringResource(R.string.label_server_url)) },
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             )
             TextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Utente") },
+                label = { Text(stringResource(R.string.label_username)) },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             TextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.label_password)) },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
@@ -172,10 +174,10 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
                         onConfigured()
                     }
                 }) {
-                    Text("Connetti e salva")
+                    Text(stringResource(R.string.action_connect_save))
                 }
                 OutlinedButton(onClick = { showAddForm = false }) {
-                    Text("Annulla")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         } else {
@@ -183,7 +185,7 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
                 modifier = Modifier.padding(top = 16.dp),
                 onClick = { showAddForm = true },
             ) {
-                Text("Aggiungi server")
+                Text(stringResource(R.string.action_add_server))
             }
         }
 
@@ -191,11 +193,11 @@ private fun SetupScreen(store: CredentialsStore, modifier: Modifier = Modifier, 
             is ConnectionStatus.Idle -> Unit
             is ConnectionStatus.Checking -> CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
             is ConnectionStatus.Success -> Text(
-                text = "Connesso. Apri Android Auto per vedere la libreria.",
+                text = stringResource(R.string.status_connected),
                 modifier = Modifier.padding(top = 16.dp),
             )
             is ConnectionStatus.Error -> Text(
-                text = "Errore: ${current.message}",
+                text = stringResource(R.string.status_error, current.message),
                 modifier = Modifier.padding(top = 16.dp),
             )
         }

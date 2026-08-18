@@ -24,10 +24,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import coil.compose.AsyncImage
+import com.example.navcarstereo.R
 
 /**
  * Chiave usata da PlaybackService per raggruppare le righe della tab Home in sezioni
@@ -161,7 +163,7 @@ fun AlbumDetailView(
                     Text(text = it.toString(), style = MaterialTheme.typography.bodyMedium)
                 }
                 IconButton(onClick = onDownloadAlbum) {
-                    Icon(Icons.Filled.Download, contentDescription = "Scarica album")
+                    Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_album))
                 }
             }
             HorizontalDivider()
@@ -191,7 +193,7 @@ private fun TrackRow(item: MediaItem, onClick: () -> Unit, onDownloadClick: () -
             }
         }
         IconButton(onClick = onDownloadClick) {
-            Icon(Icons.Filled.Download, contentDescription = "Scarica brano")
+            Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_track))
         }
     }
 }

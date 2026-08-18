@@ -53,10 +53,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import com.example.navcarstereo.R
 import com.example.navcarstereo.download.downloadAlbum
 import com.example.navcarstereo.download.downloadTrack
 import com.example.navcarstereo.player.PlayerController
@@ -85,10 +87,10 @@ private fun Tab.rootId() = when (this) {
     Tab.Playlists -> PLAYLISTS_ID
 }
 
-private fun Tab.title() = when (this) {
-    Tab.Home -> "Home"
-    Tab.Albums -> "Album"
-    Tab.Playlists -> "Playlist"
+private fun Tab.titleRes() = when (this) {
+    Tab.Home -> R.string.tab_home
+    Tab.Albums -> R.string.tab_albums
+    Tab.Playlists -> R.string.tab_playlists
 }
 
 private fun Tab.icon() = when (this) {
@@ -109,6 +111,10 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
     DisposableEffect(Unit) { onDispose { controller.release() } }
 
     var pendingDownload by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    val downloadAlbumTemplate = stringResource(R.string.download_confirm_album)
+    val downloadTrackTemplate = stringResource(R.string.download_confirm_track)
+    val unknownAlbum = stringResource(R.string.unknown_album)
+    val unknownTrack = stringResource(R.string.unknown_track)
 
     val playback by controller.state.collectAsState()
 
@@ -171,12 +177,12 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             singleLine = true,
-                            placeholder = { Text("Cerca album, artisti, brani") },
+                            placeholder = { Text(stringResource(R.string.search_placeholder)) },
                             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "Svuota")
+                                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_search))
                                     }
                                 }
                             },
@@ -190,9 +196,9 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                         )
                     } else {
                         val title = when (val dest = destination) {
-                            is Destination.TabRoot -> dest.tab.title()
+                            is Destination.TabRoot -> stringResource(dest.tab.titleRes())
                             is Destination.Detail -> dest.item.mediaMetadata.title?.toString() ?: ""
-                            is Destination.SearchResults -> "Ricerca"
+                            is Destination.SearchResults -> stringResource(R.string.search_title)
                         }
                         Text(title)
                     }
@@ -200,21 +206,21 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                 navigationIcon = {
                     if (destination !is Destination.TabRoot) {
                         IconButton(onClick = { openTab(selectedTab) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                         }
                     }
                 },
                 actions = {
                     if (searching) {
                         IconButton(onClick = { searching = false; openTab(selectedTab) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Chiudi ricerca")
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_close_search))
                         }
                     } else {
                         IconButton(onClick = { searching = true; searchQuery = "" }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Cerca")
+                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.cd_search))
                         }
                         IconButton(onClick = onOpenSetup) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Impostazioni")
+                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
                         }
                     }
                 },
@@ -237,7 +243,7 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                         NavigationBarItem(
                             selected = selectedTab == tab && destination is Destination.TabRoot,
                             onClick = { openTab(tab) },
-                            label = { Text(tab.title()) },
+                            label = { Text(stringResource(tab.titleRes())) },
                             icon = { Icon(tab.icon(), contentDescription = null) },
                         )
                     }
@@ -255,14 +261,14 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
                         items,
                         onItemClick = ::onItemClick,
                         onDownloadAlbum = {
-                            val title = dest.item.mediaMetadata.title?.toString() ?: "l'album"
-                            pendingDownload = "Scaricare tutti i brani di \"$title\"?" to {
+                            val title = dest.item.mediaMetadata.title?.toString() ?: unknownAlbum
+                            pendingDownload = String.format(downloadAlbumTemplate, title) to {
                                 config?.let { downloadAlbum(context, it, items) }
                             }
                         },
                         onDownloadTrack = { track ->
-                            val title = track.mediaMetadata.title?.toString() ?: "il brano"
-                            pendingDownload = "Scaricare \"$title\"?" to {
+                            val title = track.mediaMetadata.title?.toString() ?: unknownTrack
+                            pendingDownload = String.format(downloadTrackTemplate, title) to {
                                 config?.let { downloadTrack(context, it, track) }
                             }
                         },
@@ -299,13 +305,13 @@ fun LibraryScreen(onOpenSetup: () -> Unit, modifier: Modifier = Modifier) {
     pendingDownload?.let { (message, confirm) ->
         AlertDialog(
             onDismissRequest = { pendingDownload = null },
-            title = { Text("Download") },
+            title = { Text(stringResource(R.string.download_dialog_title)) },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { confirm(); pendingDownload = null }) { Text("Scarica") }
+                TextButton(onClick = { confirm(); pendingDownload = null }) { Text(stringResource(R.string.action_download)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDownload = null }) { Text("Annulla") }
+                TextButton(onClick = { pendingDownload = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -337,10 +343,13 @@ private fun MiniPlayerBar(
             item.mediaMetadata.artist?.let { Text(text = it.toString(), maxLines = 1, style = MaterialTheme.typography.bodySmall) }
         }
         IconButton(onClick = onTogglePlayPause) {
-            Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (isPlaying) "Pausa" else "Play")
+            Icon(
+                if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = stringResource(if (isPlaying) R.string.cd_pause else R.string.cd_play),
+            )
         }
         IconButton(onClick = onSkipNext) {
-            Icon(Icons.Filled.SkipNext, contentDescription = "Successivo")
+            Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.cd_next))
         }
     }
 }
