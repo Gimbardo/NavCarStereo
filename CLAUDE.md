@@ -43,7 +43,7 @@ Qualsiasi nuova schermata o funzione va valutata contro questi tre punti: se non
 
 ## Stato attuale
 
-Browse tree a quattro tab (root → figli browsable "Home"/"Album"/"Random"/"Playlist", 4 = massimo Android Auto): **Home** = righe di album raggruppate (ultimi ascoltati 8, nuove uscite 10, più ascoltati 10) via extra `CONTENT_STYLE_GROUP_TITLE_HINT`/`CONTENT_STYLE_BROWSABLE_HINT` del protocollo MediaBrowser, ricaricata via `notifyChildrenChanged` quando cambia l'album in riproduzione; **Album** = elenco alfabetico completo (`getAlbumList2` a blocchi da 500 finché finiscono); **Random** = 50 album da `getAlbumList2 type=random` (casuale lato server su tutta la libreria). Ogni brano riprodotto viene scrobblato (`scrobble submission=true`): è ciò che aggiorna "ultimi ascoltati" in Navidrome. Shuffle/repeat esposti ad Android Auto come pulsanti custom della sessione (`setMediaButtonPreferences` + `onCustomCommand`). Tap su album → tracce → play in ordine. Ricerca (`search3`, solo brani) apre l'album del brano trovato invece di riprodurlo subito. Build verificata con `./gradlew :mobile:assembleDebug` (compila, non ancora testata su device/Android Auto reale — tab e righe raggruppate da confermare su DHU).
+Browse tree a quattro tab (root → figli browsable "Home"/"Album"/"Random"/"Playlist", 4 = massimo Android Auto): **Home** = righe di album raggruppate (ultimi ascoltati 8, nuove uscite 10, più ascoltati 10) via extra `CONTENT_STYLE_GROUP_TITLE_HINT`/`CONTENT_STYLE_BROWSABLE_HINT` del protocollo MediaBrowser, ricaricata via `notifyChildrenChanged` quando cambia l'album in riproduzione; **Album** = libreria completa (`getAlbumList2` a blocchi da 500 finché finiscono); per Android Auto (controller legacy) divisa in cartelle A–Z/#, perché Media3 tronca a 256KB (~500 album) le liste verso i controller legacy (`MediaUtils.truncateListBySize`), l'app mobile riceve la lista intera; **Random** = 50 album da `getAlbumList2 type=random` (casuale lato server su tutta la libreria). Ogni brano riprodotto viene scrobblato (`scrobble submission=true`): è ciò che aggiorna "ultimi ascoltati" in Navidrome. Shuffle/repeat esposti ad Android Auto come pulsanti custom della sessione (`setMediaButtonPreferences` + `onCustomCommand`). Tap su album → tracce → play in ordine. Ricerca (`search3`, solo brani) apre l'album del brano trovato invece di riprodurlo subito. Verificato su DHU (Pixel 7a via USB): tab, righe Home, cartelle A–Z, pulsanti shuffle/repeat. DHU in `~/Android/Sdk/extras/google/auto/`; via adb wireless è troppo lento (ping timeout), serve il cavo.
 
 `versionCode`/`versionName` in `mobile/build.gradle.kts` sono derivati da git (tag corrente e conteggio commit), non hardcoded.
 
@@ -55,9 +55,9 @@ Browse tree a quattro tab (root → figli browsable "Home"/"Album"/"Random"/"Pla
 - R8/minify disattivato in release (`optimization.enable = false`), nessuna ottimizzazione/offuscazione.
 
 Non ancora fatto (fast-follow, non bloccante):
-- Test su Desktop Head Unit / device reale.
+- Test in auto reale (finora solo DHU). Aggiornamento Home dopo l'ascolto e tab Random non verificati a schermo.
 - Notifica di errore chiara se le credenziali non sono configurate quando Android Auto avvia il `PlaybackService` (oggi lancia eccezione in `onCreate`).
 - Ricerca per artista/album (oggi solo ricerca brani via `search3`).
-- Tab Album con migliaia di album: da verificare su DHU che Android Auto regga la lista intera; se no, sottocartelle A–Z.
+- Una singola lettera con più di ~500 album verrebbe ancora troncata da Media3 per Android Auto (oggi lontani: 613 album totali).
 - App mobile: niente tab Random (la riga Random è sparita anche dalla sua Home, che condivide il browse tree).
 - "Più ascoltati" è "tutti i tempi" (`getAlbumList2 type=frequent`), non c'è un filtro "ultimo mese" nell'API Subsonic/Navidrome.

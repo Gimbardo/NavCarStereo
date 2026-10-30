@@ -25,6 +25,7 @@ import com.example.navcarstereo.shared.navidrome.NavPlaylist
 import com.example.navcarstereo.shared.navidrome.NavSong
 import com.example.navcarstereo.shared.navidrome.NavidromeClient
 import com.google.common.collect.ImmutableList
+import java.text.Normalizer
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -271,12 +272,21 @@ class PlaybackService : MediaLibraryService() {
             val items = when {
                 parentId == ROOT_ID -> listOf(
                     tabItem(HOME_ID, "Home"),
-                    tabItem(ALBUMS_ID, "Album"),
+                    tabItem(ALBUMS_ID, "Album", childStyle = if (browser.isLegacy()) CONTENT_STYLE_LIST_ITEM else CONTENT_STYLE_GRID_ITEM),
                     tabItem(RANDOM_ID, "Random"),
                     tabItem(PLAYLISTS_ID, "Playlist"),
                 )
                 parentId == HOME_ID -> homeRows()
+                // Android Auto (controller legacy) riceve liste troncate da Media3 a 256KB (~500 album):
+                // lì la tab mostra cartelle per lettera. L'app mobile (Media3) riceve la lista intera.
+                parentId == ALBUMS_ID && browser.isLegacy() ->
+                    client.allAlbums().map { albumLetter(it.name) }.distinct().sortedWith(letterOrder)
+                        .map { tabItem("$LETTER_PREFIX$it", it) }
                 parentId == ALBUMS_ID -> client.allAlbums().map { it.toMediaItem() }
+                parentId.startsWith(LETTER_PREFIX) -> {
+                    val letter = parentId.removePrefix(LETTER_PREFIX)
+                    client.allAlbums().filter { albumLetter(it.name) == letter }.map { it.toMediaItem() }
+                }
                 // getAlbumList2 type=random pesca già su tutta la libreria lato server: niente paginazione,
                 // ogni fetch è un nuovo set casuale.
                 parentId == RANDOM_ID -> client.randomAlbums(RANDOM_TAB_SIZE).map { it.toMediaItem() }
@@ -333,7 +343,10 @@ class PlaybackService : MediaLibraryService() {
                 top.await().map { it.toMediaItem("Più ascoltati") }
         }
 
-        private fun tabItem(id: String, title: String): MediaItem = MediaItem.Builder()
+        private fun MediaSession.ControllerInfo.isLegacy() =
+            controllerVersion == MediaSession.ControllerInfo.LEGACY_CONTROLLER_VERSION
+
+        private fun tabItem(id: String, title: String, childStyle: Int = CONTENT_STYLE_GRID_ITEM): MediaItem = MediaItem.Builder()
             .setMediaId(id)
             .setMediaMetadata(
                 MediaMetadata.Builder()
@@ -341,7 +354,7 @@ class PlaybackService : MediaLibraryService() {
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    .setExtras(Bundle().apply { putInt(CONTENT_STYLE_BROWSABLE_KEY, CONTENT_STYLE_GRID_ITEM) })
+                    .setExtras(Bundle().apply { putInt(CONTENT_STYLE_BROWSABLE_KEY, childStyle) })
                     .build(),
             )
             .build()
@@ -471,6 +484,7 @@ class PlaybackService : MediaLibraryService() {
         // albumId grezzo. PLAYLIST_TRACK_MEDIA_ID_PREFIX (per i brani in playlist) è top-level,
         // sotto: serve anche fuori da questa classe (mobile, per il fetch delle lyrics).
         const val PLAYLIST_PREFIX = "playlist:"
+        const val LETTER_PREFIX = "letter:"
 
         const val PREF_NAME = "playback_state"
         const val PREF_CONTAINER_TYPE = "containerType"
@@ -488,7 +502,11 @@ class PlaybackService : MediaLibraryService() {
         // aggiungere una dipendenza solo per due extra del protocollo MediaBrowser standard.
         const val CONTENT_STYLE_BROWSABLE_KEY = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT"
         const val CONTENT_STYLE_GROUP_TITLE_KEY = "android.media.browse.CONTENT_STYLE_GROUP_TITLE_HINT"
+        const val CONTENT_STYLE_LIST_ITEM = 1
         const val CONTENT_STYLE_GRID_ITEM = 2
+
+        /** A–Z, poi "#" (numeri/simboli) in fondo. */
+        val letterOrder = compareBy<String> { it == "#" }.thenBy { it }
     }
 }
 
@@ -524,6 +542,15 @@ fun <T> List<T>.page(page: Int, pageSize: Int): List<T> {
     val from = page.toLong() * pageSize
     if (from >= size) return emptyList()
     return subList(from.toInt(), minOf(size, from.toInt() + pageSize))
+}
+
+/**
+ * Lettera della cartella A–Z di un album: primo carattere alfanumerico, senza accenti
+ * ("“The…" → T, "¡Uno!" → U, "Èrgo" → E); numeri e tutto il resto finiscono in "#".
+ */
+fun albumLetter(name: String): String {
+    val first = Normalizer.normalize(name, Normalizer.Form.NFD).firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()
+    return if (first != null && first in 'A'..'Z') first.toString() else "#"
 }
 
 /** OFF -> ALL -> ONE -> OFF, l'ordine standard dei player musicali. */
