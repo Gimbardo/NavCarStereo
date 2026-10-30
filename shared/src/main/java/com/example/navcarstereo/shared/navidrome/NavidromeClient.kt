@@ -31,7 +31,15 @@ class NavidromeClient(private val config: NavidromeConfig) {
 
     suspend fun randomAlbums(size: Int = 20): List<NavAlbum> = albumList("random", size)
 
-    suspend fun allAlbums(offset: Int, size: Int): List<NavAlbum> = albumList("alphabeticalByName", size, offset)
+    /** Tutta la libreria: getAlbumList2 restituisce al massimo 500 album per chiamata, si cicla finché finiscono. */
+    suspend fun allAlbums(): List<NavAlbum> {
+        val albums = mutableListOf<NavAlbum>()
+        do {
+            val page = albumList("alphabeticalByName", MAX_ALBUM_LIST_SIZE, albums.size)
+            albums += page
+        } while (page.size == MAX_ALBUM_LIST_SIZE)
+        return albums
+    }
 
     private suspend fun albumList(type: String, size: Int, offset: Int = 0): List<NavAlbum> = withContext(Dispatchers.IO) {
         get(
@@ -143,6 +151,8 @@ class NavidromeClient(private val config: NavidromeConfig) {
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
 
     private companion object {
+        const val MAX_ALBUM_LIST_SIZE = 500
+
         fun randomSalt(): String {
             val bytes = ByteArray(8)
             SecureRandom().nextBytes(bytes)

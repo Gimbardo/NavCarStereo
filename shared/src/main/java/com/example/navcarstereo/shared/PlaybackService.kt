@@ -247,7 +247,7 @@ class PlaybackService : MediaLibraryService() {
             val items = when {
                 parentId == ROOT_ID -> listOf(tabItem(HOME_ID, "Home"), tabItem(ALBUMS_ID, "Album"), tabItem(PLAYLISTS_ID, "Playlist"))
                 parentId == HOME_ID -> homeRows()
-                parentId == ALBUMS_ID -> client.allAlbums(offset = 0, size = ALBUMS_FETCH_SIZE).map { it.toMediaItem() }
+                parentId == ALBUMS_ID -> client.allAlbums().map { it.toMediaItem() }
                 parentId == PLAYLISTS_ID -> client.playlists().map { it.toMediaItem() }
                 parentId.startsWith(PLAYLIST_PREFIX) -> {
                     val playlistId = parentId.removePrefix(PLAYLIST_PREFIX)
@@ -255,7 +255,7 @@ class PlaybackService : MediaLibraryService() {
                 }
                 else -> client.albumSongs(parentId).map { it.toMediaItem() }
             }
-            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+            LibraryResult.ofItemList(ImmutableList.copyOf(items.page(page, pageSize)), params)
         }
 
         override fun onSearch(
@@ -430,7 +430,6 @@ class PlaybackService : MediaLibraryService() {
         const val ALBUMS_ID = "albums"
         const val PLAYLISTS_ID = "playlists"
         const val EXTRA_ALBUM_ID = "albumId"
-        const val ALBUMS_FETCH_SIZE = 500 // limite massimo per chiamata di getAlbumList2 in Subsonic
 
         val TOGGLE_SHUFFLE_COMMAND = SessionCommand("com.example.navcarstereo.TOGGLE_SHUFFLE", Bundle.EMPTY)
         val CYCLE_REPEAT_COMMAND = SessionCommand("com.example.navcarstereo.CYCLE_REPEAT", Bundle.EMPTY)
@@ -481,6 +480,17 @@ fun parsePlaylistId(mediaId: String): String? =
         ?.removePrefix(PLAYLIST_TRACK_MEDIA_ID_PREFIX)
         ?.split(":", limit = 2)
         ?.getOrNull(0)
+
+/**
+ * Pagina [page] di dimensione [pageSize]. Android Auto (via protocollo legacy) chiede di solito
+ * tutto con pageSize = Int.MAX_VALUE; i client che paginano davvero ricevono solo la loro fetta.
+ */
+fun <T> List<T>.page(page: Int, pageSize: Int): List<T> {
+    if (pageSize <= 0 || pageSize == Int.MAX_VALUE) return this
+    val from = page.toLong() * pageSize
+    if (from >= size) return emptyList()
+    return subList(from.toInt(), minOf(size, from.toInt() + pageSize))
+}
 
 /** OFF -> ALL -> ONE -> OFF, l'ordine standard dei player musicali. */
 fun nextRepeatMode(current: Int): Int = when (current) {
