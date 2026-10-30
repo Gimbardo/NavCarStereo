@@ -41,6 +41,11 @@ class NavidromeClient(private val config: NavidromeConfig) {
         return albums
     }
 
+    /** Segna il brano come ascoltato: è ciò che aggiorna "ultimi ascoltati" e i conteggi in Navidrome. */
+    suspend fun scrobble(songId: String) {
+        withContext(Dispatchers.IO) { get("scrobble", "id" to songId, "submission" to "true") }
+    }
+
     private suspend fun albumList(type: String, size: Int, offset: Int = 0): List<NavAlbum> = withContext(Dispatchers.IO) {
         get(
             "getAlbumList2",

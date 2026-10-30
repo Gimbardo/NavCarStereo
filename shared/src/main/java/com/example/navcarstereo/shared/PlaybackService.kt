@@ -51,6 +51,8 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var client: NavidromeClient
     private lateinit var session: MediaLibrarySession
     private var lastSearchResults: List<MediaItem> = emptyList()
+    private var lastScrobbledMediaId: String? = null
+    private var lastRefreshedAlbumKey: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -69,9 +71,13 @@ class PlaybackService : MediaLibraryService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(object : Player.Listener {
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = savePlaybackState()
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                savePlaybackState()
+                if (player.isPlaying) scrobbleCurrent()
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (!isPlaying) savePlaybackState()
+                if (isPlaying) scrobbleCurrent() else savePlaybackState()
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
@@ -116,6 +122,24 @@ class PlaybackService : MediaLibraryService() {
             .setSessionCommand(CYCLE_REPEAT_COMMAND)
             .build(),
     )
+
+    /**
+     * Navidrome aggiorna "ultimi ascoltati" solo via scrobble, non sullo stream. Dopo lo scrobble,
+     * se l'album è cambiato, si avvisa Android Auto di ricaricare la Home (altrimenti resta in cache).
+     */
+    private fun scrobbleCurrent() {
+        val item = session.player.currentMediaItem ?: return
+        if (item.mediaId == lastScrobbledMediaId) return
+        lastScrobbledMediaId = item.mediaId
+        val albumKey = item.mediaMetadata.extras?.getString(EXTRA_ALBUM_ID) ?: item.mediaId
+        serviceScope.launch {
+            runCatching { client.scrobble(item.songId()) }.onFailure { Log.w(TAG, "scrobble fallito", it) }
+            if (albumKey != lastRefreshedAlbumKey) {
+                lastRefreshedAlbumKey = albumKey
+                withContext(Dispatchers.Main) { session.notifyChildrenChanged(HOME_ID, Int.MAX_VALUE, null) }
+            }
+        }
+    }
 
     /** Ricarica l'ultimo album/playlist/brano/posizione ascoltati, in pausa: parte solo quando arriva onPostConnect. */
     private fun restorePlaybackState(player: ExoPlayer) {
@@ -292,10 +316,11 @@ class PlaybackService : MediaLibraryService() {
             Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(lastSearchResults), params))
 
         private suspend fun homeRows(): List<MediaItem> = coroutineScope {
-            val recent = async { client.recentAlbums() }
-            val newest = async { client.newAlbums() }
-            val top = async { client.topAlbums() }
-            val random = async { client.randomAlbums() }
+            // Righe corte: con un solo scroll si deve arrivare alle sezioni sotto.
+            val recent = async { client.recentAlbums(size = 8) }
+            val newest = async { client.newAlbums(size = 10) }
+            val top = async { client.topAlbums(size = 10) }
+            val random = async { client.randomAlbums(size = 10) }
             recent.await().map { it.toMediaItem("Ultimi ascoltati") } +
                 newest.await().map { it.toMediaItem("Nuove uscite") } +
                 top.await().map { it.toMediaItem("Più ascoltati") } +
@@ -449,6 +474,7 @@ class PlaybackService : MediaLibraryService() {
 
         const val ANDROID_AUTO_PACKAGE = "com.google.android.projection.gearhead"
         const val BUFFER_LOG_TAG = "NavCarStereoBuffer"
+        const val TAG = "PlaybackService"
 
         // Stessi valori di androidx.media.utils.MediaConstants — copiati come stringhe/int per non
         // aggiungere una dipendenza solo per due extra del protocollo MediaBrowser standard.
