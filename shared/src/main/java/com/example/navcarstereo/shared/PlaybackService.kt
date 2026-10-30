@@ -137,9 +137,27 @@ class PlaybackService : MediaLibraryService() {
             runCatching { client.scrobble(item.songId()) }.onFailure { Log.w(TAG, "scrobble fallito", it) }
             if (albumKey != lastRefreshedAlbumKey) {
                 lastRefreshedAlbumKey = albumKey
-                withContext(Dispatchers.Main) { session.notifyChildrenChanged(HOME_ID, Int.MAX_VALUE, null) }
+                withContext(Dispatchers.Main) { notifyChildrenChangedEverywhere(HOME_ID) }
             }
         }
+    }
+
+    /**
+     * session.notifyChildrenChanged notifica i client uno per uno, e per quelli collegati col
+     * MediaBrowser di sistema (Android Auto) quella strada non fa nulla: TODO "Post-P" in
+     * legacy/MediaBrowserServiceCompat di Media3. Si chiama anche la variante broadcast del servizio
+     * legacy interno, che raggiunge pure il framework.
+     * ponytail: reflection su API interne Media3 (MediaSession.getImpl, getLegacyBrowserService),
+     * da ricontrollare a ogni upgrade di Media3; se si rompe resta solo la notifica standard (log warn).
+     */
+    private fun notifyChildrenChangedEverywhere(parentId: String) {
+        session.notifyChildrenChanged(parentId, Int.MAX_VALUE, null)
+        runCatching {
+            val impl = MediaSession::class.java.getDeclaredMethod("getImpl").apply { isAccessible = true }.invoke(session)!!
+            val legacy = impl.javaClass.getDeclaredMethod("getLegacyBrowserService").apply { isAccessible = true }.invoke(impl)
+                ?: return // nessun client legacy collegato
+            legacy.javaClass.getMethod("notifyChildrenChanged", String::class.java).invoke(legacy, parentId)
+        }.onFailure { Log.w(TAG, "notifyChildrenChanged broadcast non riuscito, Android Auto non si aggiornerà", it) }
     }
 
     /** Ricarica l'ultimo album/playlist/brano/posizione ascoltati, in pausa: parte solo quando arriva onPostConnect. */
@@ -269,6 +287,12 @@ class PlaybackService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+            // Android Auto carica le tab una volta sola e non chiama più l'app sui click delle tab:
+            // appena l'utente entra in un album/lettera/playlist, Random viene ricaricata in background,
+            // così al ritorno sulla tab propone album nuovi (mai mentre la si sta guardando).
+            if (parentId !in TAB_IDS) {
+                withContext(Dispatchers.Main) { notifyChildrenChangedEverywhere(RANDOM_ID) }
+            }
             val items = when {
                 parentId == ROOT_ID -> listOf(
                     tabItem(HOME_ID, "Home"),
@@ -488,6 +512,7 @@ class PlaybackService : MediaLibraryService() {
         const val PLAYLISTS_ID = "playlists"
         const val RANDOM_ID = "random"
         const val RANDOM_TAB_SIZE = 50
+        val TAB_IDS = setOf(ROOT_ID, HOME_ID, ALBUMS_ID, RANDOM_ID, PLAYLISTS_ID)
         const val EXTRA_ALBUM_ID = "albumId"
 
         val TOGGLE_SHUFFLE_COMMAND = SessionCommand("com.example.navcarstereo.TOGGLE_SHUFFLE", Bundle.EMPTY)
