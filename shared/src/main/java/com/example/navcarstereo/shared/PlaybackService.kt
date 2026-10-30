@@ -269,9 +269,17 @@ class PlaybackService : MediaLibraryService() {
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
             val items = when {
-                parentId == ROOT_ID -> listOf(tabItem(HOME_ID, "Home"), tabItem(ALBUMS_ID, "Album"), tabItem(PLAYLISTS_ID, "Playlist"))
+                parentId == ROOT_ID -> listOf(
+                    tabItem(HOME_ID, "Home"),
+                    tabItem(ALBUMS_ID, "Album"),
+                    tabItem(RANDOM_ID, "Random"),
+                    tabItem(PLAYLISTS_ID, "Playlist"),
+                )
                 parentId == HOME_ID -> homeRows()
                 parentId == ALBUMS_ID -> client.allAlbums().map { it.toMediaItem() }
+                // getAlbumList2 type=random pesca già su tutta la libreria lato server: niente paginazione,
+                // ogni fetch è un nuovo set casuale.
+                parentId == RANDOM_ID -> client.randomAlbums(RANDOM_TAB_SIZE).map { it.toMediaItem() }
                 parentId == PLAYLISTS_ID -> client.playlists().map { it.toMediaItem() }
                 parentId.startsWith(PLAYLIST_PREFIX) -> {
                     val playlistId = parentId.removePrefix(PLAYLIST_PREFIX)
@@ -320,11 +328,9 @@ class PlaybackService : MediaLibraryService() {
             val recent = async { client.recentAlbums(size = 8) }
             val newest = async { client.newAlbums(size = 10) }
             val top = async { client.topAlbums(size = 10) }
-            val random = async { client.randomAlbums(size = 10) }
             recent.await().map { it.toMediaItem("Ultimi ascoltati") } +
                 newest.await().map { it.toMediaItem("Nuove uscite") } +
-                top.await().map { it.toMediaItem("Più ascoltati") } +
-                random.await().map { it.toMediaItem("Random") }
+                top.await().map { it.toMediaItem("Più ascoltati") }
         }
 
         private fun tabItem(id: String, title: String): MediaItem = MediaItem.Builder()
@@ -454,6 +460,8 @@ class PlaybackService : MediaLibraryService() {
         const val HOME_ID = "home"
         const val ALBUMS_ID = "albums"
         const val PLAYLISTS_ID = "playlists"
+        const val RANDOM_ID = "random"
+        const val RANDOM_TAB_SIZE = 50
         const val EXTRA_ALBUM_ID = "albumId"
 
         val TOGGLE_SHUFFLE_COMMAND = SessionCommand("com.example.navcarstereo.TOGGLE_SHUFFLE", Bundle.EMPTY)
