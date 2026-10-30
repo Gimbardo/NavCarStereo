@@ -1,4 +1,4 @@
-package com.example.navcarstereo.player
+package com.example.navcarstereo.shared
 
 import androidx.media3.common.Player
 import org.junit.Assert.assertEquals

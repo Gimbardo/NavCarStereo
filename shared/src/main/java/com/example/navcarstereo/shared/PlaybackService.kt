@@ -14,7 +14,11 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import com.example.navcarstereo.shared.navidrome.CredentialsStore
 import com.example.navcarstereo.shared.navidrome.NavAlbum
 import com.example.navcarstereo.shared.navidrome.NavPlaylist
@@ -70,6 +74,12 @@ class PlaybackService : MediaLibraryService() {
                 if (!isPlaying) savePlaybackState()
             }
 
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
+                session.setMediaButtonPreferences(transportButtons(player))
+
+            override fun onRepeatModeChanged(repeatMode: Int) =
+                session.setMediaButtonPreferences(transportButtons(player))
+
             // ponytail: diagnostica temporanea per il bug "buffering si ferma sul cambio traccia
             // automatico" (BETA-ISSUES.md) — rimuovere una volta isolata la causa reale nei log.
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -80,9 +90,32 @@ class PlaybackService : MediaLibraryService() {
                 )
             }
         })
-        session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
+        session = MediaLibrarySession.Builder(this, player, LibraryCallback())
+            .setMediaButtonPreferences(transportButtons(player))
+            .build()
         restorePlaybackState(player)
     }
+
+    /**
+     * Android Auto non mostra shuffle/repeat da solo: vanno esposti come pulsanti custom della
+     * sessione. L'icona riflette lo stato corrente, quindi va rigenerata a ogni cambio modalità.
+     */
+    private fun transportButtons(player: Player): List<CommandButton> = listOf(
+        CommandButton.Builder(if (player.shuffleModeEnabled) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
+            .setDisplayName("Casuale")
+            .setSessionCommand(TOGGLE_SHUFFLE_COMMAND)
+            .build(),
+        CommandButton.Builder(
+            when (player.repeatMode) {
+                Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
+                Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
+                else -> CommandButton.ICON_REPEAT_OFF
+            },
+        )
+            .setDisplayName("Ripeti")
+            .setSessionCommand(CYCLE_REPEAT_COMMAND)
+            .build(),
+    )
 
     /** Ricarica l'ultimo album/playlist/brano/posizione ascoltati, in pausa: parte solo quando arriva onPostConnect. */
     private fun restorePlaybackState(player: ExoPlayer) {
@@ -143,6 +176,33 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private inner class LibraryCallback : MediaLibrarySession.Callback {
+
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            .setAvailableSessionCommands(
+                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+                    .add(TOGGLE_SHUFFLE_COMMAND)
+                    .add(CYCLE_REPEAT_COMMAND)
+                    .build(),
+            )
+            .build()
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            val player = session.player
+            when (customCommand.customAction) {
+                TOGGLE_SHUFFLE_COMMAND.customAction -> player.shuffleModeEnabled = !player.shuffleModeEnabled
+                CYCLE_REPEAT_COMMAND.customAction -> player.repeatMode = nextRepeatMode(player.repeatMode)
+                else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+            }
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
 
         /**
          * Non forziamo più play() qui: farlo durante l'handshake di connessione competeva con
@@ -372,6 +432,9 @@ class PlaybackService : MediaLibraryService() {
         const val EXTRA_ALBUM_ID = "albumId"
         const val ALBUMS_FETCH_SIZE = 500 // limite massimo per chiamata di getAlbumList2 in Subsonic
 
+        val TOGGLE_SHUFFLE_COMMAND = SessionCommand("com.example.navcarstereo.TOGGLE_SHUFFLE", Bundle.EMPTY)
+        val CYCLE_REPEAT_COMMAND = SessionCommand("com.example.navcarstereo.CYCLE_REPEAT", Bundle.EMPTY)
+
         // Prefisso per distinguere, nel catch-all di onGetChildren, un parentId "playlist" da un
         // albumId grezzo. PLAYLIST_TRACK_MEDIA_ID_PREFIX (per i brani in playlist) è top-level,
         // sotto: serve anche fuori da questa classe (mobile, per il fetch delle lyrics).
@@ -418,3 +481,10 @@ fun parsePlaylistId(mediaId: String): String? =
         ?.removePrefix(PLAYLIST_TRACK_MEDIA_ID_PREFIX)
         ?.split(":", limit = 2)
         ?.getOrNull(0)
+
+/** OFF -> ALL -> ONE -> OFF, l'ordine standard dei player musicali. */
+fun nextRepeatMode(current: Int): Int = when (current) {
+    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+    else -> Player.REPEAT_MODE_OFF
+}

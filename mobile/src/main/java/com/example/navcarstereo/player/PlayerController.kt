@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaBrowser
 import androidx.media3.session.SessionToken
 import com.example.navcarstereo.shared.PlaybackService
+import com.example.navcarstereo.shared.nextRepeatMode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -129,11 +130,4 @@ class PlayerController(private val context: Context) {
             )
         }
     }
-}
-
-/** OFF -> ALL -> ONE -> OFF, l'ordine standard dei player musicali. */
-fun nextRepeatMode(current: Int): Int = when (current) {
-    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-    else -> Player.REPEAT_MODE_OFF
 }
