@@ -43,7 +43,7 @@ Qualsiasi nuova schermata o funzione va valutata contro questi tre punti: se non
 
 ## Stato attuale
 
-Browse tree a due tab (root → figli browsable "Home"/"Album", standard Android Auto per i tab): **Home** = righe di album raggruppate (ultimi ascoltati, nuove uscite, più ascoltati, random) via extra `CONTENT_STYLE_GROUP_TITLE_HINT`/`CONTENT_STYLE_BROWSABLE_HINT` del protocollo MediaBrowser; **Album** = elenco alfabetico completo (fino a 500, limite Subsonic per chiamata, nessuna paginazione reale ancora). Tap su album → tracce → play in ordine. Ricerca (`search3`, solo brani) apre l'album del brano trovato invece di riprodurlo subito. Build verificata con `./gradlew :mobile:assembleDebug` (compila, non ancora testata su device/Android Auto reale — tab e righe raggruppate da confermare su DHU).
+Browse tree a quattro tab (root → figli browsable "Home"/"Album"/"Random"/"Playlist", 4 = massimo Android Auto): **Home** = righe di album raggruppate (ultimi ascoltati 8, nuove uscite 10, più ascoltati 10) via extra `CONTENT_STYLE_GROUP_TITLE_HINT`/`CONTENT_STYLE_BROWSABLE_HINT` del protocollo MediaBrowser, ricaricata via `notifyChildrenChanged` quando cambia l'album in riproduzione; **Album** = elenco alfabetico completo (`getAlbumList2` a blocchi da 500 finché finiscono); **Random** = 50 album da `getAlbumList2 type=random` (casuale lato server su tutta la libreria). Ogni brano riprodotto viene scrobblato (`scrobble submission=true`): è ciò che aggiorna "ultimi ascoltati" in Navidrome. Shuffle/repeat esposti ad Android Auto come pulsanti custom della sessione (`setMediaButtonPreferences` + `onCustomCommand`). Tap su album → tracce → play in ordine. Ricerca (`search3`, solo brani) apre l'album del brano trovato invece di riprodurlo subito. Build verificata con `./gradlew :mobile:assembleDebug` (compila, non ancora testata su device/Android Auto reale — tab e righe raggruppate da confermare su DHU).
 
 `versionCode`/`versionName` in `mobile/build.gradle.kts` sono derivati da git (tag corrente e conteggio commit), non hardcoded.
 
@@ -58,5 +58,6 @@ Non ancora fatto (fast-follow, non bloccante):
 - Test su Desktop Head Unit / device reale.
 - Notifica di errore chiara se le credenziali non sono configurate quando Android Auto avvia il `PlaybackService` (oggi lancia eccezione in `onCreate`).
 - Ricerca per artista/album (oggi solo ricerca brani via `search3`).
-- Paginazione reale della tab Album se una libreria supera 500 album (oggi tronca al limite Subsonic).
+- Tab Album con migliaia di album: da verificare su DHU che Android Auto regga la lista intera; se no, sottocartelle A–Z.
+- App mobile: niente tab Random (la riga Random è sparita anche dalla sua Home, che condivide il browse tree).
 - "Più ascoltati" è "tutti i tempi" (`getAlbumList2 type=frequent`), non c'è un filtro "ultimo mese" nell'API Subsonic/Navidrome.
