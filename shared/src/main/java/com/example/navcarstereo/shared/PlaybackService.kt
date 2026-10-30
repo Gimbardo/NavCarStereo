@@ -1,11 +1,6 @@
 package com.example.navcarstereo.shared
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -30,7 +25,6 @@ import com.example.navcarstereo.shared.navidrome.NavPlaylist
 import com.example.navcarstereo.shared.navidrome.NavSong
 import com.example.navcarstereo.shared.navidrome.NavidromeClient
 import com.google.common.collect.ImmutableList
-import java.io.ByteArrayOutputStream
 import java.text.Normalizer
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -286,8 +280,8 @@ class PlaybackService : MediaLibraryService() {
                 // Android Auto (controller legacy) riceve liste troncate da Media3 a 256KB (~500 album):
                 // lì la tab mostra cartelle per lettera. L'app mobile (Media3) riceve la lista intera.
                 parentId == ALBUMS_ID && browser.isLegacy() ->
-                    client.allAlbums().map { albumLetter(it.name) }.distinct().sortedWith(letterOrder)
-                        .map { letterItem(it) }
+                    client.allAlbums().groupBy { albumLetter(it.name) }.toSortedMap(letterOrder)
+                        .map { (letter, albums) -> letterItem(letter, albums.mapNotNull { it.coverArtId }) }
                 parentId == ALBUMS_ID -> client.allAlbums().map { it.toMediaItem() }
                 parentId.startsWith(LETTER_PREFIX) -> {
                     val letter = parentId.removePrefix(LETTER_PREFIX)
@@ -365,12 +359,14 @@ class PlaybackService : MediaLibraryService() {
             )
             .build()
 
-        /** Cartella lettera come riquadro della griglia, con la lettera disegnata come copertina. */
-        private fun letterItem(letter: String): MediaItem = tabItem("$LETTER_PREFIX$letter", letter).let { item ->
-            item.buildUpon()
+        /** Cartella lettera come riquadro della griglia, con il collage delle prime copertine come immagine. */
+        private fun letterItem(letter: String, coverIds: List<String>): MediaItem {
+            val item = tabItem("$LETTER_PREFIX$letter", letter)
+            if (coverIds.isEmpty()) return item
+            return item.buildUpon()
                 .setMediaMetadata(
                     item.mediaMetadata.buildUpon()
-                        .setArtworkData(letterArtwork(letter), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        .setArtworkUri(CoverCollageProvider.uri(this@PlaybackService, coverIds))
                         .build(),
                 )
                 .build()
@@ -520,28 +516,6 @@ class PlaybackService : MediaLibraryService() {
         const val CONTENT_STYLE_BROWSABLE_KEY = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT"
         const val CONTENT_STYLE_GROUP_TITLE_KEY = "android.media.browse.CONTENT_STYLE_GROUP_TITLE_HINT"
         const val CONTENT_STYLE_GRID_ITEM = 2
-
-        // ponytail: PNG generati a runtime e tenuti in memoria (27 × pochi KB), niente drawable/ContentProvider.
-        private val letterArtworkCache = mutableMapOf<String, ByteArray>()
-
-        /** Lettera bianca su riquadro scuro, stile tastiera "Jump to letter" di Android Auto. */
-        fun letterArtwork(letter: String): ByteArray = synchronized(letterArtworkCache) {
-            letterArtworkCache.getOrPut(letter) {
-                val size = 256
-                val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(bitmap)
-                canvas.drawColor(0xFF3C4043.toInt())
-                val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = Color.WHITE
-                    textSize = size * 0.55f
-                    textAlign = Paint.Align.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
-                }
-                val baseline = size / 2f - (paint.descent() + paint.ascent()) / 2f
-                canvas.drawText(letter, size / 2f, baseline, paint)
-                ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-            }
-        }
 
         /** A–Z, poi "#" (numeri/simboli) in fondo. */
         val letterOrder = compareBy<String> { it == "#" }.thenBy { it }

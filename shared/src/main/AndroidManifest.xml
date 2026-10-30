@@ -23,6 +23,13 @@
             </intent-filter>
         </service>
 
+        <!-- Collage di copertine per le cartelle lettera in Android Auto (vedi CoverCollageProvider).
+         Esportato perché Android Auto lo legge da un altro processo; serve solo immagini. -->
+        <provider
+            android:name="com.example.navcarstereo.shared.CoverCollageProvider"
+            android:authorities="${applicationId}.covercollage"
+            android:exported="true" />
+
     </application>
 
 </manifest>

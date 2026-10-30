@@ -124,6 +124,18 @@ class NavidromeClient(private val config: NavidromeConfig) {
 
     fun coverArtUrl(coverArtId: String): String = buildUrl("getCoverArt", "id" to coverArtId).toString()
 
+    /** Byte dell'immagine, ridimensionata lato server a [size] px. */
+    suspend fun coverArt(coverArtId: String, size: Int): ByteArray = withContext(Dispatchers.IO) {
+        val connection = buildUrl("getCoverArt", "id" to coverArtId, "size" to size.toString()).openConnection() as HttpURLConnection
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
+        try {
+            connection.inputStream.use { it.readBytes() }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun get(endpoint: String, vararg params: Pair<String, String>): JSONObject {
         val connection = buildUrl(endpoint, *params).openConnection() as HttpURLConnection
         connection.connectTimeout = 10_000
