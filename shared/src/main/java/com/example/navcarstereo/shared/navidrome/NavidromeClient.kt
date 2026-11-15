@@ -207,6 +207,8 @@ class NavidromeClient(private val config: NavidromeConfig) {
             track = if (has("track")) optInt("track") else null,
             coverArtId = optStringOrNull("coverArt"),
             durationSeconds = if (has("duration")) optInt("duration") else null,
+            trackGainDb = optJSONObject("replayGain")?.takeIf { it.has("trackGain") }?.getDouble("trackGain"),
+            albumGainDb = optJSONObject("replayGain")?.takeIf { it.has("albumGain") }?.getDouble("albumGain"),
         )
 
         fun JSONArray?.orEmpty(): List<JSONObject> {

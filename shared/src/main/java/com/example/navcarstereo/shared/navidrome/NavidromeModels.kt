@@ -23,6 +23,9 @@ data class NavSong(
     val track: Int?,
     val coverArtId: String?,
     val durationSeconds: Int?,
+    /** ReplayGain in dB (tag nei file, esposto da Navidrome); null se il brano non è taggato. */
+    val trackGainDb: Double? = null,
+    val albumGainDb: Double? = null,
 )
 
 data class NavPlaylist(

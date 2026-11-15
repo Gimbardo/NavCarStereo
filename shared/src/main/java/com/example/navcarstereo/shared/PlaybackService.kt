@@ -73,6 +73,7 @@ class PlaybackService : MediaLibraryService() {
             .build()
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                applyReplayGain(player, mediaItem)
                 savePlaybackState()
                 if (player.isPlaying) scrobbleCurrent()
             }
@@ -81,8 +82,10 @@ class PlaybackService : MediaLibraryService() {
                 if (isPlaying) scrobbleCurrent() else savePlaybackState()
             }
 
-            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                applyReplayGain(player, player.currentMediaItem)
                 session.setMediaButtonPreferences(transportButtons(player))
+            }
 
             override fun onRepeatModeChanged(repeatMode: Int) =
                 session.setMediaButtonPreferences(transportButtons(player))
@@ -472,13 +475,13 @@ class PlaybackService : MediaLibraryService() {
                 .setIsPlayable(true)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                 .apply { coverArtId?.let { setArtworkUri(android.net.Uri.parse(client.coverArtUrl(it))) } }
-                .apply {
-                    if (playlistId == null) {
-                        albumId?.let {
-                            setExtras(Bundle().apply { putString(EXTRA_ALBUM_ID, it) })
-                        }
-                    }
-                }
+                .setExtras(
+                    Bundle().apply {
+                        if (playlistId == null) albumId?.let { putString(EXTRA_ALBUM_ID, it) }
+                        trackGainDb?.let { putDouble(EXTRA_TRACK_GAIN, it) }
+                        albumGainDb?.let { putDouble(EXTRA_ALBUM_GAIN, it) }
+                    },
+                )
                 .build(),
         )
         .build()
@@ -514,6 +517,21 @@ class PlaybackService : MediaLibraryService() {
         const val RANDOM_TAB_SIZE = 50
         val TAB_IDS = setOf(ROOT_ID, HOME_ID, ALBUMS_ID, RANDOM_ID, PLAYLISTS_ID)
         const val EXTRA_ALBUM_ID = "albumId"
+        const val EXTRA_TRACK_GAIN = "replayGainTrack"
+        const val EXTRA_ALBUM_GAIN = "replayGainAlbum"
+
+        // ponytail: Player.volume sa solo attenuare (max 1.0). Il preamp lascia margine ai brani
+        // silenziosi (gain > PREAMP_DB restano al massimo). Per amplificare davvero: LoudnessEnhancer.
+        private const val PREAMP_DB = -8.0
+
+        /** Shuffle → gain traccia; ordine album → gain album (mantiene la dinamica del disco). */
+        fun applyReplayGain(player: Player, item: MediaItem?) {
+            val extras = item?.mediaMetadata?.extras
+            val track = extras?.takeIf { it.containsKey(EXTRA_TRACK_GAIN) }?.getDouble(EXTRA_TRACK_GAIN)
+            val album = extras?.takeIf { it.containsKey(EXTRA_ALBUM_GAIN) }?.getDouble(EXTRA_ALBUM_GAIN)
+            val gain = (if (player.shuffleModeEnabled) track ?: album else album ?: track)
+            player.volume = if (gain == null) 1f else Math.pow(10.0, (gain + PREAMP_DB) / 20).coerceAtMost(1.0).toFloat()
+        }
 
         val TOGGLE_SHUFFLE_COMMAND = SessionCommand("com.example.navcarstereo.TOGGLE_SHUFFLE", Bundle.EMPTY)
         val CYCLE_REPEAT_COMMAND = SessionCommand("com.example.navcarstereo.CYCLE_REPEAT", Bundle.EMPTY)
